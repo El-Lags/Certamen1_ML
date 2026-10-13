@@ -28,6 +28,10 @@ div[data-testid="stMetric"] label p {{color:#5F6B7A; font-size:0.85rem;}}
 </style>""", unsafe_allow_html=True)
 
 
+# Oculta la barra de herramientas de Plotly (en el celular se superpone con los títulos)
+CONFIG_GRAFICO = {"displayModeBar": False}
+
+
 def usd(x):
     return f"${x:,.0f}"
 
@@ -117,7 +121,7 @@ with tab1:
                                  marker=dict(size=13, color=RED, line=dict(width=2, color="white"))))
         fig.update_layout(title="Costo total vs umbral (test)", xaxis_title="Umbral", yaxis_title="Costo total (US$)",
                           height=430, margin=dict(t=60, b=40), legend=dict(orientation="h", y=-0.2))
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, width="stretch", config=CONFIG_GRAFICO)
     with col2:
         txt = [[f"<b>TN</b><br>{tn:,}<br>$0", f"<b>FP</b><br>{FP[i_sel]:,}<br>{usd(FP[i_sel] * c_fp)}"],
                [f"<b>FN</b><br>{FN[i_sel]:,}<br>{usd(FN[i_sel] * c_fn)}", f"<b>TP</b><br>{tp:,}<br>$0"]]
@@ -126,7 +130,7 @@ with tab1:
                                   x=["Pred. 0", "Pred. 1"], y=["Real 0", "Real 1"], hoverinfo="skip"))
         cm.update_layout(title=f"Matriz de confusión @ {u_sel:.3f} (cantidad y costo)", height=430,
                          margin=dict(t=60, b=40), yaxis_autorange="reversed")
-        st.plotly_chart(cm, width="stretch")
+        st.plotly_chart(cm, width="stretch", config=CONFIG_GRAFICO)
 
 # ---------------------------------------------------------------- pestaña 2: desglose del costo + comparación
 with tab2:
@@ -147,7 +151,7 @@ with tab2:
         bar.update_layout(barmode="stack", title="Costo por estrategia: contactos inútiles (FP) vs ventas perdidas (FN)",
                           height=400, margin=dict(t=60, b=40), legend=dict(orientation="h", y=-0.2),
                           yaxis=dict(autorange="reversed"), xaxis_title="US$")
-        st.plotly_chart(bar, width="stretch")
+        st.plotly_chart(bar, width="stretch", config=CONFIG_GRAFICO)
     with col4:
         st.subheader("Comparación de estrategias")
         st.dataframe(est.style.format({c: "${:,.0f}" for c in ["Costo FP", "Costo FN", "Costo total", "Ahorro vs 0,5"]}),
@@ -171,7 +175,7 @@ with tab3:
                              marker=dict(size=14, color=RED, line=dict(width=2, color="white"))))
     roc.update_layout(title="Curva ROC con recta de iso-costo", xaxis_title="Tasa de FP (FPR)", yaxis_title="Recall (TPR)",
                       height=480, margin=dict(t=60, b=40), legend=dict(orientation="h", y=-0.2), yaxis_range=[0, 1.02])
-    st.plotly_chart(roc, width="stretch")
+    st.plotly_chart(roc, width="stretch", config=CONFIG_GRAFICO)
     st.caption("Todos los puntos sobre una misma recta de iso-costo cuestan lo mismo. El mejor umbral es donde la recta "
                "toca la ROC más arriba y a la izquierda; al encarecer el FN la recta se aplana y el óptimo sube por la curva.")
 
