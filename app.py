@@ -9,10 +9,23 @@ import plotly.graph_objects as go
 import streamlit as st
 from sklearn.metrics import roc_curve
 
-st.set_page_config(page_title="Costo y umbral óptimo", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Costo y umbral óptimo", layout="wide")
 
 # Paleta definida una sola vez: cada concepto siempre tiene el mismo color en todos los gráficos
 NAVY, RED, TEAL, GREY, ORANGE = "#1f3a5f", "#d1495b", "#2a9d8f", "#9aa5b1", "#e08e45"
+
+# Estilo: tarjetas con borde para los indicadores, título con barra lateral y cuadro de "lectura rápida"
+st.markdown(f"""
+<style>
+div[data-testid="stMetric"] {{background:#F5F7FA; border:1px solid #E1E6EE; border-radius:8px; padding:14px 16px;}}
+div[data-testid="stMetric"] label p {{color:#5F6B7A; font-size:0.85rem;}}
+.titulo {{border-left:5px solid {NAVY}; padding-left:16px; margin-bottom:6px;}}
+.titulo h1 {{margin:0; padding:0; font-size:2rem; color:#1B2430;}}
+.subtitulo {{color:#5F6B7A; font-size:0.95rem; margin:4px 0 18px 21px;}}
+.lectura {{background:#F5F7FA; border:1px solid #E1E6EE; border-left:5px solid {TEAL}; border-radius:8px;
+          padding:14px 18px; margin:18px 0 8px 0; color:#1B2430;}}
+.lectura b {{color:{NAVY};}}
+</style>""", unsafe_allow_html=True)
 
 
 def usd(x):
@@ -35,20 +48,23 @@ def cargar():
 y, p, grid, FP, FN, FPR, TPR = cargar()
 P, N = int((y == 1).sum()), int((y == 0).sum())
 
-st.title("📈 Venta cruzada de seguros: costo de cada error y umbral óptimo")
-st.caption("Probabilidades en escala real del mejor modelo, evaluadas sobre el conjunto de test (nunca usado para entrenar). "
-           f"{len(y):,} clientes · {P:,} compradores ({P / len(y):.1%}).")
+st.markdown('<div class="titulo"><h1>Venta cruzada de seguros: costo de cada error y umbral óptimo</h1></div>'
+            f'<div class="subtitulo">Health Insurance Cross Sell · {len(y):,} clientes de test · {P:,} compradores ({P / len(y):.1%}) · '
+            'Random Forest con probabilidades en escala real</div>', unsafe_allow_html=True)
 
 # ---------------------------------------------------------------- controles (barra lateral)
 with st.sidebar:
-    st.header("1. Costos (US$)")
+    st.header("Panel de control")
+    st.subheader("1. Costos de los errores (US$)")
     c_fp = st.slider("Falso positivo: contactar a quien NO compra", 0.5, 50.0, 5.0, 0.5)
     c_fn = st.slider("Falso negativo: perder una venta", 1.0, 500.0, 50.0, 1.0)
     p_star = c_fp / (c_fp + c_fn)
     st.metric("Umbral teórico p* = C_FP / (C_FP + C_FN)", f"{p_star:.3f}", help=f"Razón FN/FP = {c_fn / c_fp:.1f}")
-    st.header("2. Umbral de decisión")
+    st.subheader("2. Umbral de decisión")
     modo = st.radio("Umbral a evaluar", ["Óptimo (mínimo costo)", "Teórico p*", "Manual"], index=0)
-    manual = st.slider("Umbral manual", 0.0, 1.0, 0.5, 0.01, disabled=(modo != "Manual"))
+    with st.expander("Umbral manual (avanzado)", expanded=(modo == "Manual")):
+        manual = st.slider("Umbral manual", 0.0, 1.0, 0.5, 0.01, disabled=(modo != "Manual"),
+                           help="Se activa al elegir 'Manual' arriba.")
 
 # ---------------------------------------------------------------- cálculos (todo vectorizado)
 costo = FP * c_fp + FN * c_fn                      # costo total para cada umbral de la grilla
@@ -76,7 +92,16 @@ k[2].metric("Precisión", f"{prec:.1%}", help="% de contactados que sí compran"
 k[3].metric("Costo total", usd(costo[i_sel]))
 k[4].metric("Ahorro vs umbral 0,5", usd(ahorro), delta=f"{ahorro / costo[i_05]:.1%}" if costo[i_05] else None)
 
-tab1, tab2, tab3, tab4 = st.tabs(["📉 Costo vs umbral", "💵 ¿En qué se va la plata?", "🎯 Curva ROC", "ℹ️ Cómo leerlo"])
+# Lectura rápida: texto que se arma solo con los valores actuales
+st.markdown(
+    f'<div class="lectura"><b>Lectura rápida.</b> Con un falso positivo de <b>{usd(c_fp)}</b> y un falso negativo de <b>{usd(c_fn)}</b> '
+    f'(razón {c_fn / c_fp:.1f}), el umbral teórico es <b>{p_star:.3f}</b> y el óptimo en estos datos es <b>{u_opt:.3f}</b>. '
+    f'Con el umbral evaluado ({u_sel:.3f}) se contacta al <b>{recall:.1%}</b> de los compradores y el costo total es '
+    f'<b>{usd(costo[i_sel])}</b>, frente a <b>{usd(costo[i_05])}</b> con el umbral 0,5: '
+    + (f'un ahorro de <b>{usd(ahorro)}</b> ({ahorro / costo[i_05]:.1%}).' if ahorro >= 0 else f'<b>{usd(-ahorro)}</b> más caro que con 0,5.')
+    + '</div>', unsafe_allow_html=True)
+
+tab1, tab2, tab3, tab4 = st.tabs(["Costo vs umbral", "¿En qué se va la plata?", "Curva ROC", "Cómo leerlo"])
 
 # ---------------------------------------------------------------- pestaña 1: curva de costo + matriz de confusión
 with tab1:
@@ -127,7 +152,7 @@ with tab2:
         st.subheader("Comparación de estrategias")
         st.dataframe(est.style.format({c: "${:,.0f}" for c in ["Costo FP", "Costo FN", "Costo total", "Ahorro vs 0,5"]}),
                      hide_index=True, width="stretch")
-        st.download_button("⬇️ Descargar tabla (CSV)", est.to_csv(index=False).encode("utf-8"),
+        st.download_button("Descargar tabla (CSV)", est.to_csv(index=False).encode("utf-8"),
                            "comparacion_estrategias.csv", "text/csv")
 
 # ---------------------------------------------------------------- pestaña 3: ROC con recta de iso-costo
