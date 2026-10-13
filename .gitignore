@@ -1,0 +1,10 @@
+# Datos crudos (se descargan de Kaggle)
+data/
+*.zip
+
+# Auxiliares
+run_nb.py
+run_log.txt
+__pycache__/
+.ipynb_checkpoints/
+.venv/
